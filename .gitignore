@@ -25,3 +25,6 @@ dist-ssr
 # Local env files
 .env.local
 .env.*.local
+
+# Seed data with real contact details — keep local
+supabase/seed.sql
