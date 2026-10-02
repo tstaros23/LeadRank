@@ -1,5 +1,7 @@
-// Nav items and user are hardcoded until auth and routing exist.
-function TopNav() {
+// The user is hardcoded until auth exists.
+function TopNav({ page }) {
+  const linkClass = (name) => `nav-link${page === name ? ' is-active' : ''}`
+
   return (
     <header className="topnav">
       <div className="brand">
@@ -7,13 +9,13 @@ function TopNav() {
         LeadRank
       </div>
       <nav className="nav-links">
-        <a className="nav-link is-active" href="/">Lists</a>
-        <span className="nav-link placeholder">Scoring rules</span>
+        <a className={linkClass('lists')} href="#/">Lists</a>
+        <a className={linkClass('rules')} href="#/rules">Scoring rules</a>
         <span className="nav-link placeholder">Team</span>
       </nav>
       <div className="user">
         <span className="avatar">TS</span>
-        Ted S. · Sales rep
+        <span className="user-label">Ted S. · Sales rep</span>
       </div>
     </header>
   )
