@@ -36,7 +36,7 @@ function Score({ score }) {
   )
 }
 
-function LeadTable({ list, leads, rules, notes, onAddNote, onEditNote, onDeleteNote }) {
+function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, onDeleteNote }) {
   const scored = leads.map((lead) => ({ ...lead, score: fitScore(rules, lead.data) }))
   const hasRules = rules.some((r) => r.enabled)
 
@@ -206,6 +206,7 @@ function LeadTable({ list, leads, rules, notes, onAddNote, onEditNote, onDeleteN
       {openLead && (
         <NotesDialog
           key={openLead.id}
+          userId={userId}
           lead={openLead}
           notes={notesByLead.get(openLead.id) ?? []}
           startWriting={openNotes.startWriting}

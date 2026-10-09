@@ -3,16 +3,19 @@ import { supabase } from './supabaseClient'
 import TopNav from './components/TopNav'
 import LeadTable from './components/LeadTable'
 import ScoringRules from './components/ScoringRules'
-import './App.css'
 
-const NOTE_COLUMNS = 'id, lead_id, body, author, verdict, reason, created_at, updated_at'
+// author comes from the note author's profile.
+const NOTE_COLUMNS =
+  'id, lead_id, body, author_id, verdict, reason, created_at, updated_at, author:profiles(full_name)'
 
 // Tabs live in the URL hash so a refresh stays on the same tab.
 function pageFromHash() {
   return window.location.hash === '#/rules' ? 'rules' : 'lists'
 }
 
-function App() {
+// Everything behind sign-in. Mounted per user, so signing out and back in as
+// someone else starts from a clean slate.
+function Workspace({ user, profile, onSignOut }) {
   const [page, setPage] = useState(pageFromHash)
   const [list, setList] = useState(null)
   const [leads, setLeads] = useState([])
@@ -34,7 +37,7 @@ function App() {
         setStatus('error')
       }
 
-      // Proof of concept: show the first list. List picking comes later.
+      // Show the first list this user can see. List picking comes later.
       const listResult = await supabase.from('lists').select('*').order('created_at').limit(1)
       if (listResult.error) return fail(listResult.error.message)
       if (listResult.data.length === 0) return setStatus('empty')
@@ -73,8 +76,8 @@ function App() {
   async function addNote(leadId, body) {
     const { data, error: insertError } = await supabase
       .from('notes')
-      // Hardcoded until sign-in exists.
-      .insert({ lead_id: leadId, body, author: 'Ted S.' })
+      // author_id defaults to the signed-in user.
+      .insert({ lead_id: leadId, body })
       .select(NOTE_COLUMNS)
       .single()
     if (insertError) throw new Error(insertError.message)
@@ -110,18 +113,21 @@ function App() {
   return (
     <div className="page">
       <div className="frame">
-        <TopNav page={page} />
+        <TopNav page={page} profile={profile} onSignOut={onSignOut} />
         {status === 'loading' && <p className="message">Loading leads…</p>}
         {status === 'error' && (
           <p className="message message-error">Couldn't load leads: {error}</p>
         )}
         {status === 'empty' && (
           <p className="message">
-            No lists yet. Run <code>supabase/seed.sql</code> to load one.
+            {profile.role === 'owner'
+              ? 'No lists yet.'
+              : "No lists are assigned to you yet. Ask your organization's owner to assign one."}
           </p>
         )}
         {status === 'ready' && page === 'lists' && (
           <LeadTable
+            userId={user.id}
             list={list}
             leads={leads}
             rules={rules}
@@ -132,11 +138,17 @@ function App() {
           />
         )}
         {status === 'ready' && page === 'rules' && (
-          <ScoringRules list={list} leads={leads} rules={rules} onSaved={setRules} />
+          <ScoringRules
+            list={list}
+            leads={leads}
+            rules={rules}
+            canEdit={profile.role === 'owner'}
+            onSaved={setRules}
+          />
         )}
       </div>
     </div>
   )
 }
 
-export default App
+export default Workspace

@@ -1,5 +1,14 @@
-// The user is hardcoded until auth exists.
-function TopNav({ page }) {
+function initials(name) {
+  const letters = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+  return (letters.length > 1 ? letters[0] + letters.at(-1) : letters[0] ?? '?').toUpperCase()
+}
+
+const ROLE_LABEL = { owner: 'Owner', rep: 'Sales rep' }
+
+function TopNav({ page, profile, onSignOut }) {
   const linkClass = (name) => `nav-link${page === name ? ' is-active' : ''}`
 
   return (
@@ -14,8 +23,13 @@ function TopNav({ page }) {
         <span className="nav-link placeholder">Team</span>
       </nav>
       <div className="user">
-        <span className="avatar">TS</span>
-        <span className="user-label">Ted S. · Sales rep</span>
+        <span className="avatar" aria-hidden="true">{initials(profile.full_name)}</span>
+        <span className="user-label">
+          {profile.full_name} · {ROLE_LABEL[profile.role]}
+        </span>
+        <button type="button" className="link-button" onClick={onSignOut}>
+          Sign out
+        </button>
       </div>
     </header>
   )

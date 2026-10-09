@@ -10,7 +10,7 @@ function formatWhen(iso) {
 }
 
 // One note: read it, edit it in place, or delete it after a confirm step.
-function NoteItem({ note, onEdit, onDelete }) {
+function NoteItem({ note, isMine, onEdit, onDelete }) {
   const [mode, setMode] = useState('view') // 'view' | 'editing' | 'confirmDelete'
   const [text, setText] = useState(note.body)
   const [busy, setBusy] = useState(false)
@@ -47,12 +47,13 @@ function NoteItem({ note, onEdit, onDelete }) {
     <li className="note">
       <div className="note-meta">
         <span>
-          {formatWhen(note.created_at)} · {note.author}
+          {formatWhen(note.created_at)} · {note.author?.full_name || 'Unknown'}
           {note.updated_at && (
             <span title={`Edited ${formatWhen(note.updated_at)}`}> · edited</span>
           )}
         </span>
-        {mode === 'view' && (
+        {/* Only a note's author can change it; the database enforces the same. */}
+        {mode === 'view' && isMine && (
           <span className="note-tools">
             <button type="button" className="link-button" onClick={() => setMode('editing')}>
               Edit
@@ -130,7 +131,7 @@ function NoteItem({ note, onEdit, onDelete }) {
 
 // Popup for one lead's notes: add a note at the top, read past ones below,
 // newest first. Uses <dialog> so Escape, focus and the backdrop come free.
-function NotesDialog({ lead, notes, startWriting, onAdd, onEdit, onDelete, onClose }) {
+function NotesDialog({ userId, lead, notes, startWriting, onAdd, onEdit, onDelete, onClose }) {
   const dialogRef = useRef(null)
   const textRef = useRef(null)
   const [draft, setDraft] = useState('')
@@ -223,7 +224,13 @@ function NotesDialog({ lead, notes, startWriting, onAdd, onEdit, onDelete, onClo
         ) : (
           <ol className="note-list">
             {notes.map((note) => (
-              <NoteItem key={note.id} note={note} onEdit={onEdit} onDelete={onDelete} />
+              <NoteItem
+                key={note.id}
+                note={note}
+                isMine={note.author_id === userId}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
             ))}
           </ol>
         )}

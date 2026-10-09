@@ -148,7 +148,7 @@ function RuleValue({ draft, stats, onChange }) {
   }
 }
 
-function ScoringRules({ list, leads, rules, onSaved }) {
+function ScoringRules({ list, leads, rules, canEdit, onSaved }) {
   const columns = list.columns
   const stats = Object.fromEntries(columns.map((c) => [c.name, columnStats(c, leads)]))
   const [drafts, setDrafts] = useState(() => draftsFrom(rules, columns))
@@ -228,11 +228,15 @@ function ScoringRules({ list, leads, rules, onSaved }) {
   return (
     <section className="rules">
       <p className="notice">
-        <strong>This list only.</strong> Rules here score {list.name} and nothing else. Add as
-        many as you like to any column — every rule that's on counts equally.
+        <strong>This list only.</strong> Rules here score {list.name} and nothing else.{' '}
+        {canEdit
+          ? "Add as many as you like to any column — every rule that's on counts equally."
+          : 'You can see them; only the owner can change them.'}
       </p>
 
-      <div className="rule-groups">
+      {/* Disabling the fieldset makes every control inside read-only for reps. */}
+      <fieldset className="rule-groups" disabled={!canEdit}>
+        <legend className="visually-hidden">Scoring rules for {list.name}</legend>
         {columns.map((column) => {
           const columnDrafts = drafts.filter((d) => d.column_name === column.name)
           const s = stats[column.name]
@@ -243,9 +247,11 @@ function ScoringRules({ list, leads, rules, onSaved }) {
                   <div className="column-name">{column.name}</div>
                   <div className="stats">{describeStats(s)}</div>
                 </div>
-                <button type="button" className="button button-small" onClick={() => addRule(column)}>
-                  + Add rule
-                </button>
+                {canEdit && (
+                  <button type="button" className="button button-small" onClick={() => addRule(column)}>
+                    + Add rule
+                  </button>
+                )}
               </div>
 
               {columnDrafts.length === 0 && (
@@ -296,21 +302,23 @@ function ScoringRules({ list, leads, rules, onSaved }) {
                         </>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="remove"
-                      aria-label={`Remove rule on ${column.name}`}
-                      onClick={() => changed(drafts.filter((d) => d.id !== draft.id))}
-                    >
-                      ×
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="remove"
+                        aria-label={`Remove rule on ${column.name}`}
+                        onClick={() => changed(drafts.filter((d) => d.id !== draft.id))}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 )
               })}
             </div>
           )
         })}
-      </div>
+      </fieldset>
 
       <p className="formula">
         fit score = rules hit ÷ rules turned on →{' '}
@@ -319,33 +327,35 @@ function ScoringRules({ list, leads, rules, onSaved }) {
           : `${activeCount} active ${activeCount === 1 ? 'rule' : 'rules'}, so every lead scores ${possibleScores(activeCount)}`}
       </p>
 
-      <div className="rules-actions">
-        <button
-          type="button"
-          className="button button-primary"
-          disabled={!isDirty || hasProblems || saveState.status === 'saving'}
-          onClick={save}
-        >
-          {saveState.status === 'saving' ? 'Saving…' : `Save and re-score ${fmt(leads.length)} leads`}
-        </button>
-        <button
-          type="button"
-          className="button"
-          disabled={!isDirty || saveState.status === 'saving'}
-          onClick={() => changed(draftsFrom(rules, columns))}
-        >
-          Discard changes
-        </button>
-        {saveState.status === 'saved' && <span className="save-note">{saveState.message}</span>}
-        {saveState.status === 'error' && (
-          <span className="save-note message-error">Couldn't save: {saveState.message}</span>
-        )}
-        {saveState.status === 'idle' && isDirty && (
-          <span className="save-note muted">
-            {hasProblems ? 'Fix the highlighted rules to save' : 'Unsaved changes'}
-          </span>
-        )}
-      </div>
+      {canEdit && (
+        <div className="rules-actions">
+          <button
+            type="button"
+            className="button button-primary"
+            disabled={!isDirty || hasProblems || saveState.status === 'saving'}
+            onClick={save}
+          >
+            {saveState.status === 'saving' ? 'Saving…' : `Save and re-score ${fmt(leads.length)} leads`}
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={!isDirty || saveState.status === 'saving'}
+            onClick={() => changed(draftsFrom(rules, columns))}
+          >
+            Discard changes
+          </button>
+          {saveState.status === 'saved' && <span className="save-note">{saveState.message}</span>}
+          {saveState.status === 'error' && (
+            <span className="save-note message-error">Couldn't save: {saveState.message}</span>
+          )}
+          {saveState.status === 'idle' && isDirty && (
+            <span className="save-note muted">
+              {hasProblems ? 'Fix the highlighted rules to save' : 'Unsaved changes'}
+            </span>
+          )}
+        </div>
+      )}
     </section>
   )
 }
