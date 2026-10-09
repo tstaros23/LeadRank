@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fitScore, scoreBand } from '../scoring'
+import NotesDialog from './NotesDialog'
 
 // "Ewing, NJ" from "50 Walter Street, Ewing, NJ 08628". Display only; the
 // stored Address is untouched.
@@ -35,9 +36,21 @@ function Score({ score }) {
   )
 }
 
-function LeadTable({ list, leads, rules }) {
+function LeadTable({ list, leads, rules, notes, onAddNote }) {
   const scored = leads.map((lead) => ({ ...lead, score: fitScore(rules, lead.data) }))
   const hasRules = rules.some((r) => r.enabled)
+
+  // Notes arrive newest first, so each lead's list stays newest first.
+  const notesByLead = new Map()
+  for (const note of notes) {
+    if (!notesByLead.has(note.lead_id)) notesByLead.set(note.lead_id, [])
+    notesByLead.get(note.lead_id).push(note)
+  }
+  const calledCount = notesByLead.size
+
+  // { leadId, startWriting } while the notes popup is open.
+  const [openNotes, setOpenNotes] = useState(null)
+  const openLead = openNotes && leads.find((l) => l.id === openNotes.leadId)
 
   const [view, setView] = useState('original')
   // The ranked order is a snapshot. Scores can change underneath it, but rows
@@ -70,7 +83,7 @@ function LeadTable({ list, leads, rules }) {
         <div>
           <h1 className="list-title">{list.name}</h1>
           <p className="list-meta">
-            {leads.length.toLocaleString()} leads · 0 called · {meta}
+            {leads.length.toLocaleString()} leads · {calledCount} called · {meta}
           </p>
         </div>
         <div className="list-actions">
@@ -115,29 +128,58 @@ function LeadTable({ list, leads, rules }) {
               <th className="num">Group #</th>
               <th>Score</th>
               <th>Called</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ id, row_number, data, score }) => (
-              <tr key={id}>
-                <td className="num row-number">{row_number}</td>
-                <td>
-                  <div className="primary">{data['Community'] ?? <Blank />}</div>
-                  <div className="secondary">{cityFromAddress(data['Address'])}</div>
-                </td>
-                <td>
-                  <div className="primary">{data['Contact'] ?? <Blank />}</div>
-                  <div className="secondary">{data['Community Phone #']}</div>
-                </td>
-                <td className="num">{data['Bed #'] ?? <Blank />}</td>
-                <td className="primary">{data['Group'] ?? <Blank />}</td>
-                <td className="num">{data['Group #'] ?? <Blank />}</td>
-                <td>
-                  <Score score={score} />
-                </td>
-                <td className="muted">—</td>
-              </tr>
-            ))}
+            {rows.map(({ id, row_number, data, score }) => {
+              const leadNotes = notesByLead.get(id) ?? []
+              const name = data['Community'] ?? `row ${row_number}`
+              return (
+                <tr key={id}>
+                  <td className="num row-number">{row_number}</td>
+                  <td>
+                    <div className="primary">{data['Community'] ?? <Blank />}</div>
+                    <div className="secondary">{cityFromAddress(data['Address'])}</div>
+                  </td>
+                  <td>
+                    <div className="primary">{data['Contact'] ?? <Blank />}</div>
+                    <div className="secondary">{data['Community Phone #']}</div>
+                  </td>
+                  <td className="num">{data['Bed #'] ?? <Blank />}</td>
+                  <td className="primary">{data['Group'] ?? <Blank />}</td>
+                  <td className="num">{data['Group #'] ?? <Blank />}</td>
+                  <td>
+                    <Score score={score} />
+                  </td>
+                  <td className={leadNotes.length ? 'called' : 'muted'}>
+                    {leadNotes.length ? '✓' : '—'}
+                  </td>
+                  <td>
+                    <div className="notes-cell">
+                      {leadNotes.length > 0 && (
+                        <button
+                          type="button"
+                          className="note-count"
+                          aria-label={`Show ${leadNotes.length} notes for ${name}`}
+                          onClick={() => setOpenNotes({ leadId: id, startWriting: false })}
+                        >
+                          {leadNotes.length} {leadNotes.length === 1 ? 'note' : 'notes'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="note-add"
+                        aria-label={`Add a note for ${name}`}
+                        onClick={() => setOpenNotes({ leadId: id, startWriting: true })}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -160,6 +202,17 @@ function LeadTable({ list, leads, rules }) {
             : `Rows 1–${rows.length} of ${leads.length}, in file order`}
         </span>
       </footer>
+
+      {openLead && (
+        <NotesDialog
+          key={openLead.id}
+          lead={openLead}
+          notes={notesByLead.get(openLead.id) ?? []}
+          startWriting={openNotes.startWriting}
+          onAdd={onAddNote}
+          onClose={() => setOpenNotes(null)}
+        />
+      )}
     </section>
   )
 }

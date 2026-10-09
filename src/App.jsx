@@ -15,6 +15,7 @@ function App() {
   const [list, setList] = useState(null)
   const [leads, setLeads] = useState([])
   const [rules, setRules] = useState([])
+  const [notes, setNotes] = useState([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
 
@@ -37,25 +38,46 @@ function App() {
       if (listResult.data.length === 0) return setStatus('empty')
 
       const firstList = listResult.data[0]
-      const [leadResult, ruleResult] = await Promise.all([
+      const [leadResult, ruleResult, noteResult] = await Promise.all([
         supabase
           .from('leads')
           .select('id, row_number, data')
           .eq('list_id', firstList.id)
           .order('row_number'),
         supabase.from('rules').select('*').eq('list_id', firstList.id).order('position'),
+        // Notes on this list's leads, newest first.
+        supabase
+          .from('notes')
+          .select('id, lead_id, body, author, verdict, reason, created_at, leads!inner(list_id)')
+          .eq('leads.list_id', firstList.id)
+          .order('created_at', { ascending: false }),
       ])
       if (leadResult.error) return fail(leadResult.error.message)
       if (ruleResult.error) return fail(ruleResult.error.message)
+      if (noteResult.error) return fail(noteResult.error.message)
 
       setList(firstList)
       setLeads(leadResult.data)
       setRules(ruleResult.data)
+      setNotes(noteResult.data)
       setStatus('ready')
     }
 
     load()
   }, [])
+
+  // Saves a note and adds it to the top of the lead's notes. Throws on failure
+  // so the dialog can keep the text and show the error.
+  async function addNote(leadId, body) {
+    const { data, error: insertError } = await supabase
+      .from('notes')
+      // Hardcoded until sign-in exists.
+      .insert({ lead_id: leadId, body, author: 'Ted S.' })
+      .select('id, lead_id, body, author, verdict, reason, created_at')
+      .single()
+    if (insertError) throw new Error(insertError.message)
+    setNotes((current) => [data, ...current])
+  }
 
   return (
     <div className="page">
@@ -71,7 +93,7 @@ function App() {
           </p>
         )}
         {status === 'ready' && page === 'lists' && (
-          <LeadTable list={list} leads={leads} rules={rules} />
+          <LeadTable list={list} leads={leads} rules={rules} notes={notes} onAddNote={addNote} />
         )}
         {status === 'ready' && page === 'rules' && (
           <ScoringRules list={list} leads={leads} rules={rules} onSaved={setRules} />
