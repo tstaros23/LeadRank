@@ -36,7 +36,7 @@ function Score({ score }) {
   )
 }
 
-function LeadTable({ list, leads, rules, notes, onAddNote }) {
+function LeadTable({ list, leads, rules, notes, onAddNote, onEditNote, onDeleteNote }) {
   const scored = leads.map((lead) => ({ ...lead, score: fitScore(rules, lead.data) }))
   const hasRules = rules.some((r) => r.enabled)
 
@@ -210,6 +210,8 @@ function LeadTable({ list, leads, rules, notes, onAddNote }) {
           notes={notesByLead.get(openLead.id) ?? []}
           startWriting={openNotes.startWriting}
           onAdd={onAddNote}
+          onEdit={onEditNote}
+          onDelete={onDeleteNote}
           onClose={() => setOpenNotes(null)}
         />
       )}

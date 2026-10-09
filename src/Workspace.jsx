@@ -5,6 +5,8 @@ import LeadTable from './components/LeadTable'
 import ScoringRules from './components/ScoringRules'
 import './App.css'
 
+const NOTE_COLUMNS = 'id, lead_id, body, author, verdict, reason, created_at, updated_at'
+
 // Tabs live in the URL hash so a refresh stays on the same tab.
 function pageFromHash() {
   return window.location.hash === '#/rules' ? 'rules' : 'lists'
@@ -48,7 +50,7 @@ function App() {
         // Notes on this list's leads, newest first.
         supabase
           .from('notes')
-          .select('id, lead_id, body, author, verdict, reason, created_at, leads!inner(list_id)')
+          .select(`${NOTE_COLUMNS}, leads!inner(list_id)`)
           .eq('leads.list_id', firstList.id)
           .order('created_at', { ascending: false }),
       ])
@@ -73,10 +75,36 @@ function App() {
       .from('notes')
       // Hardcoded until sign-in exists.
       .insert({ lead_id: leadId, body, author: 'Ted S.' })
-      .select('id, lead_id, body, author, verdict, reason, created_at')
+      .select(NOTE_COLUMNS)
       .single()
     if (insertError) throw new Error(insertError.message)
     setNotes((current) => [data, ...current])
+  }
+
+  // Replaces a note's text. The old verdict described the old text, so it is
+  // cleared for the note to be scored again.
+  async function editNote(noteId, body) {
+    const { data, error: updateError } = await supabase
+      .from('notes')
+      .update({ body, updated_at: new Date().toISOString(), verdict: null, reason: null })
+      .eq('id', noteId)
+      .select(NOTE_COLUMNS)
+      .single()
+    if (updateError) throw new Error(updateError.message)
+    setNotes((current) => current.map((n) => (n.id === noteId ? data : n)))
+  }
+
+  async function deleteNote(noteId) {
+    // Ask for the deleted row back: a delete blocked by row security returns
+    // no error, just no rows.
+    const { data, error: deleteError } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId)
+      .select('id')
+    if (deleteError) throw new Error(deleteError.message)
+    if (data.length === 0) throw new Error('The note was not deleted.')
+    setNotes((current) => current.filter((n) => n.id !== noteId))
   }
 
   return (
@@ -93,7 +121,15 @@ function App() {
           </p>
         )}
         {status === 'ready' && page === 'lists' && (
-          <LeadTable list={list} leads={leads} rules={rules} notes={notes} onAddNote={addNote} />
+          <LeadTable
+            list={list}
+            leads={leads}
+            rules={rules}
+            notes={notes}
+            onAddNote={addNote}
+            onEditNote={editNote}
+            onDeleteNote={deleteNote}
+          />
         )}
         {status === 'ready' && page === 'rules' && (
           <ScoringRules list={list} leads={leads} rules={rules} onSaved={setRules} />
