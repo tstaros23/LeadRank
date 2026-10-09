@@ -131,7 +131,7 @@ function NoteItem({ note, isMine, onEdit, onDelete }) {
 
 // Popup for one lead's notes: add a note at the top, read past ones below,
 // newest first. Uses <dialog> so Escape, focus and the backdrop come free.
-function NotesDialog({ userId, lead, notes, startWriting, onAdd, onEdit, onDelete, onClose }) {
+function NotesDialog({ userId, lead, label, notes, startWriting, onAdd, onEdit, onDelete, onClose }) {
   const dialogRef = useRef(null)
   const textRef = useRef(null)
   const [draft, setDraft] = useState('')
@@ -159,8 +159,6 @@ function NotesDialog({ userId, lead, notes, startWriting, onAdd, onEdit, onDelet
     }
   }
 
-  const { data } = lead
-  const contact = [data['Contact'], data['Community Phone #']].filter(Boolean).join(' · ')
 
   return (
     <dialog
@@ -175,11 +173,10 @@ function NotesDialog({ userId, lead, notes, startWriting, onAdd, onEdit, onDelet
         <header className="notes-head">
           <div>
             <h2 id="notes-title" className="notes-title">
-              {data['Community'] ?? 'Untitled lead'}
+              {label.title}
             </h2>
             <p className="notes-sub">
-              Row {lead.row_number}
-              {contact && ` · ${contact}`}
+              {label.subtitle}
             </p>
           </div>
           <button

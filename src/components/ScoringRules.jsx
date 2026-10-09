@@ -148,7 +148,7 @@ function RuleValue({ draft, stats, onChange }) {
   }
 }
 
-function ScoringRules({ list, leads, rules, canEdit, onSaved }) {
+function ScoringRules({ picker, list, leads, rules, canEdit, onSaved }) {
   const columns = list.columns
   const stats = Object.fromEntries(columns.map((c) => [c.name, columnStats(c, leads)]))
   const [drafts, setDrafts] = useState(() => draftsFrom(rules, columns))
@@ -227,6 +227,7 @@ function ScoringRules({ list, leads, rules, canEdit, onSaved }) {
 
   return (
     <section className="rules">
+      <div className="rules-head">{picker}</div>
       <p className="notice">
         <strong>This list only.</strong> Rules here score {list.name} and nothing else.{' '}
         {canEdit

@@ -1,15 +1,29 @@
 import { useState } from 'react'
-import { fitScore, scoreBand } from '../scoring'
+import { fitScore, isBlank, scoreBand } from '../scoring'
 import NotesDialog from './NotesDialog'
 
-// "Ewing, NJ" from "50 Walter Street, Ewing, NJ 08628". Display only; the
-// stored Address is untouched.
-function cityFromAddress(address) {
-  if (!address) return ''
-  const parts = address.split(',').map((p) => p.trim())
-  if (parts.length < 3) return ''
-  const state = parts.at(-1).split(' ')[0]
-  return `${parts.at(-2)}, ${state}`
+// How a lead is referred to outside the table: its first text column, then
+// the row number and a couple more filled-in text columns.
+function leadLabel(columns, lead) {
+  const texts = columns.filter((c) => c.type === 'text' && !isBlank(lead.data[c.name]))
+  const [first, ...rest] = texts
+  return {
+    title: first ? String(lead.data[first.name]) : `Row ${lead.row_number}`,
+    subtitle: [`Row ${lead.row_number}`, ...rest.slice(0, 2).map((c) => lead.data[c.name])].join(
+      ' · ',
+    ),
+  }
+}
+
+function Cell({ column, value }) {
+  if (isBlank(value)) return <Blank />
+  if (column.type === 'number') return value
+  const text = String(value)
+  return (
+    <span className="cell-text" title={text}>
+      {text}
+    </span>
+  )
 }
 
 // Highest score first; ties keep file order. Unscored leads go last.
@@ -36,7 +50,18 @@ function Score({ score }) {
   )
 }
 
-function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, onDeleteNote }) {
+function LeadTable({
+  picker,
+  uploadButton,
+  userId,
+  list,
+  leads,
+  rules,
+  notes,
+  onAddNote,
+  onEditNote,
+  onDeleteNote,
+}) {
   const scored = leads.map((lead) => ({ ...lead, score: fitScore(rules, lead.data) }))
   const hasRules = rules.some((r) => r.enabled)
 
@@ -81,7 +106,7 @@ function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, o
     <section>
       <div className="list-header">
         <div>
-          <h1 className="list-title">{list.name}</h1>
+          {picker}
           <p className="list-meta">
             {leads.length.toLocaleString()} leads · {calledCount} called · {meta}
           </p>
@@ -113,6 +138,7 @@ function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, o
           >
             Re-rank
           </button>
+          {uploadButton}
         </div>
       </div>
 
@@ -121,34 +147,29 @@ function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, o
           <thead>
             <tr>
               <th className="num">#</th>
-              <th>Community</th>
-              <th>Contact</th>
-              <th className="num">Bed #</th>
-              <th>Group</th>
-              <th className="num">Group #</th>
+              {list.columns.map((column) => (
+                <th key={column.name} className={column.type === 'number' ? 'num' : undefined}>
+                  {column.name}
+                </th>
+              ))}
               <th>Score</th>
               <th>Called</th>
               <th>Notes</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ id, row_number, data, score }) => {
+            {rows.map((lead) => {
+              const { id, row_number, data, score } = lead
               const leadNotes = notesByLead.get(id) ?? []
-              const name = data['Community'] ?? `row ${row_number}`
+              const name = leadLabel(list.columns, lead).title
               return (
                 <tr key={id}>
                   <td className="num row-number">{row_number}</td>
-                  <td>
-                    <div className="primary">{data['Community'] ?? <Blank />}</div>
-                    <div className="secondary">{cityFromAddress(data['Address'])}</div>
-                  </td>
-                  <td>
-                    <div className="primary">{data['Contact'] ?? <Blank />}</div>
-                    <div className="secondary">{data['Community Phone #']}</div>
-                  </td>
-                  <td className="num">{data['Bed #'] ?? <Blank />}</td>
-                  <td className="primary">{data['Group'] ?? <Blank />}</td>
-                  <td className="num">{data['Group #'] ?? <Blank />}</td>
+                  {list.columns.map((column) => (
+                    <td key={column.name} className={column.type === 'number' ? 'num' : undefined}>
+                      <Cell column={column} value={data[column.name]} />
+                    </td>
+                  ))}
                   <td>
                     <Score score={score} />
                   </td>
@@ -187,7 +208,7 @@ function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, o
       <footer className="table-footer">
         {!hasRules && (
           <span>
-            No scoring rules on yet. <a href="#/rules">Add some in Scoring rules</a>.
+            No scoring rules on yet. <a href={`#/rules/${list.id}`}>Add some in Scoring rules</a>.
           </span>
         )}
         <span className="legend">
@@ -208,6 +229,7 @@ function LeadTable({ userId, list, leads, rules, notes, onAddNote, onEditNote, o
           key={openLead.id}
           userId={userId}
           lead={openLead}
+          label={leadLabel(list.columns, openLead)}
           notes={notesByLead.get(openLead.id) ?? []}
           startWriting={openNotes.startWriting}
           onAdd={onAddNote}

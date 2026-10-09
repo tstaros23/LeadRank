@@ -1,3 +1,5 @@
+import { hashFor } from '../routes'
+
 function initials(name) {
   const letters = name
     .split(/\s+/)
@@ -8,7 +10,7 @@ function initials(name) {
 
 const ROLE_LABEL = { owner: 'Owner', rep: 'Sales rep' }
 
-function TopNav({ page, profile, onSignOut }) {
+function TopNav({ page, listId, profile, onSignOut }) {
   const linkClass = (name) => `nav-link${page === name ? ' is-active' : ''}`
 
   return (
@@ -18,8 +20,8 @@ function TopNav({ page, profile, onSignOut }) {
         LeadRank
       </div>
       <nav className="nav-links">
-        <a className={linkClass('lists')} href="#/">Lists</a>
-        <a className={linkClass('rules')} href="#/rules">Scoring rules</a>
+        <a className={linkClass('lists')} href={hashFor('lists', listId)}>Lists</a>
+        <a className={linkClass('rules')} href={hashFor('rules', listId)}>Scoring rules</a>
         <span className="nav-link placeholder">Team</span>
       </nav>
       <div className="user">
